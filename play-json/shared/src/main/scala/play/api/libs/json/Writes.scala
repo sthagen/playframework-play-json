@@ -269,7 +269,7 @@ trait DefaultWrites extends LowPriorityWrites {
   /**
    * Serializer for Map[String,V] types.
    */
-  @deprecated("Use `genericMapWrites`", "2.7.0")
+  @deprecated("Use `genericMapWrites`", "2.8.0")
   implicit def mapWrites[V: Writes]: OWrites[MapWrites.Map[String, V]] = MapWrites.mapWrites
 
   /**
@@ -279,7 +279,7 @@ trait DefaultWrites extends LowPriorityWrites {
     JsObject(ts.mapValues(w.writes(_)).toSeq)
   }
 
-  @deprecated("Use `jsValueWrites`", "2.7.0")
+  @deprecated("Use `jsValueWrites`", "2.8.0")
   object JsValueWrites extends Writes[JsValue] {
     def writes(o: JsValue) = o
   }
@@ -329,7 +329,7 @@ trait DefaultWrites extends LowPriorityWrites {
     def writes(d: java.util.Date): JsValue = JsString(new java.text.SimpleDateFormat(pattern).format(d))
   }
 
-  @deprecated("Use `defaultDateWrites`", "2.7.0")
+  @deprecated("Use `defaultDateWrites`", "2.8.0")
   object DefaultDateWrites extends Writes[Date] {
     def writes(d: Date): JsValue = JsNumber(d.getTime)
   }
@@ -344,7 +344,7 @@ trait DefaultWrites extends LowPriorityWrites {
    * Serializer for java.sql.Date
    * @param pattern the pattern used by SimpleDateFormat
    */
-  @deprecated("Use `dateWrites`", "2.7.0")
+  @deprecated("Use `dateWrites`", "2.8.0")
   def sqlDateWrites(pattern: String): Writes[java.sql.Date] = new Writes[java.sql.Date] {
     def writes(d: java.sql.Date): JsValue = JsString(new java.text.SimpleDateFormat(pattern).format(d))
   }
@@ -375,7 +375,7 @@ trait DefaultWrites extends LowPriorityWrites {
 }
 
 sealed trait LowPriorityWrites extends EnvWrites {
-  @deprecated("Use `iterableWrites`", "2.7.0")
+  @deprecated("Use `iterableWrites`", "2.8.0")
   def traversableWrites[A: Writes]: Writes[Traversable[A]] = {
     val w = implicitly[Writes[A]]
 

@@ -15,7 +15,7 @@ import play.api.libs.json.jackson.JacksonJson
 trait EnvWrites {
   import scala.language.implicitConversions
 
-  @deprecated("Use `jsonNodeWrites`", "2.7.0")
+  @deprecated("Use `jsonNodeWrites`", "2.8.0")
   object JsonNodeWrites extends Writes[JsonNode] {
     def writes(o: JsonNode): JsValue = JacksonJson.jsonNodeToJsValue(o)
   }
