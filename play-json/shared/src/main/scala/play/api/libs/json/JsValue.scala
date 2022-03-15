@@ -5,6 +5,7 @@
 package play.api.libs.json
 
 import scala.collection._
+import scala.util.hashing.MurmurHash3
 
 case class JsResultException(errors: collection.Seq[(JsPath, collection.Seq[JsonValidationError])])
     extends RuntimeException(s"JsResultException(errors:$errors)")
@@ -129,20 +130,20 @@ case class JsObject(
   /**
    * The fields of this JsObject in the order passed to the constructor
    */
-  lazy val fields: collection.Seq[(String, JsValue)] = underlying.toSeq
+  def fields: collection.Seq[(String, JsValue)] = underlying.toSeq
 
   /**
    * The value of this JsObject as an immutable map.
    */
-  lazy val value: Map[String, JsValue] = underlying match {
+  def value: Map[String, JsValue] = underlying match {
     case m: immutable.Map[String, JsValue] => m
-    case m                                 => m.toMap
+    case m                                 => JsObject.createFieldsMap(m)
   }
 
   /**
    * Return all fields as a set
    */
-  def fieldSet: Set[(String, JsValue)] = fields.toSet
+  def fieldSet: Set[(String, JsValue)] = underlying.toSet
 
   /**
    * Return all keys
@@ -157,47 +158,51 @@ case class JsObject(
   /**
    * Merge this object with another one. Values from other override value of the current object.
    */
-  def ++(other: JsObject): JsObject = JsObject(JsObject.createFieldsMap(underlying) ++= other.underlying)
+  def ++(other: JsObject): JsObject = JsObject(underlying ++ other.underlying)
 
   /**
    * Removes one field from the JsObject
    */
-  def -(otherField: String): JsObject = JsObject(JsObject.createFieldsMap(underlying) -= otherField)
+  def -(otherField: String): JsObject = JsObject(underlying - otherField)
 
   /**
    * Adds one field to the JsObject
    */
-  def +(otherField: (String, JsValue)): JsObject =
-    JsObject(JsObject.createFieldsMap(underlying) += otherField)
+  def +(otherField: (String, JsValue)): JsObject = JsObject(underlying + otherField)
 
   /**
    * merges everything in depth and doesn't stop at first level, as ++ does
    */
   def deepMerge(other: JsObject): JsObject = {
     def merge(existingObject: JsObject, otherObject: JsObject): JsObject = {
-      val result = existingObject.underlying ++ otherObject.underlying.map {
-        case (otherKey, otherValue) =>
-          val maybeExistingValue = existingObject.underlying.get(otherKey)
+      val result = existingObject.underlying ++ otherObject.underlying.map { case (otherKey, otherValue) =>
+        val maybeExistingValue = existingObject.underlying.get(otherKey)
 
-          val newValue = (maybeExistingValue, otherValue) match {
-            case (Some(e: JsObject), o: JsObject) => merge(e, o)
-            case _                                => otherValue
-          }
-          otherKey -> newValue
+        val newValue = (maybeExistingValue, otherValue) match {
+          case (Some(e: JsObject), o: JsObject) => merge(e, o)
+          case _                                => otherValue
+        }
+        otherKey -> newValue
       }
       JsObject(result)
     }
     merge(this, other)
   }
 
-  override def equals(other: Any): Boolean = other match {
-    case that @ JsObject(_) => (that.canEqual(this)) && fieldSet == that.fieldSet
-    case _                  => false
+  override def equals(other: Any): Boolean = {
+    other match {
+      case o: AnyRef if this.eq(o) =>
+        true
+      case JsObject(that) =>
+        underlying == that
+      case _ =>
+        false
+    }
   }
 
   def canEqual(other: Any): Boolean = other.isInstanceOf[JsObject]
 
-  override def hashCode: Int = fieldSet.hashCode()
+  override def hashCode(): Int = MurmurHash3.unorderedHash(underlying, MurmurHash3.setSeed)
 }
 
 object JsObject extends (Seq[(String, JsValue)] => JsObject) {
@@ -207,9 +212,8 @@ object JsObject extends (Seq[(String, JsValue)] => JsObject) {
    *
    * We use this because the Java implementation better handles hash code collisions for Comparable keys.
    */
-  private[json] def createFieldsMap(fields: Iterable[(String, JsValue)] = Seq.empty): mutable.Map[String, JsValue] = {
-    import scala.collection.JavaConverters._
-    new java.util.LinkedHashMap[String, JsValue]().asScala ++= fields
+  private[json] def createFieldsMap(fields: Iterable[(String, JsValue)] = Seq.empty): immutable.Map[String, JsValue] = {
+    (ImmutableLinkedHashMap.newBuilder ++= fields).result()
   }
 
   /**

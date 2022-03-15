@@ -16,17 +16,10 @@ val isScala3 = Def.setting {
   CrossVersion.partialVersion(scalaVersion.value).exists(_._1 != 2)
 }
 
-// specs2 hasn't been doing Scala 3 releases, so we use for3Use2_13.
-//
-// Since these are just test dependencies, it isn't really a problem.
-// But if too much more time passes and specs2 still hasn't released
-// for Scala 3, we should consider ripping it out.
-
 def specs2(scalaVersion: String) =
-  Seq(
-    "org.specs2" %% "specs2-core"  % "4.13.0" % Test,
-    "org.specs2" %% "specs2-junit" % "4.13.0" % Test,
-  ).map(_.cross(CrossVersion.for3Use2_13))
+  Seq("core", "junit").map { n =>
+    ("org.specs2" %% s"specs2-$n" % "4.14.1").cross(CrossVersion.for3Use2_13) % Test
+  }
 
 val jacksonVersion         = "2.11.4"
 val jacksonDatabindVersion = jacksonVersion
@@ -68,13 +61,6 @@ def playJsonMimaSettings = Seq(
   ),
 )
 
-// Workaround for https://github.com/scala-js/scala-js/issues/2378
-// Use "sbt -DscalaJSStage=full" in .travis.yml
-ThisBuild / scalaJSStage := (sys.props.get("scalaJSStage") match {
-  case Some("full") => FullOptStage
-  case _            => FastOptStage
-})
-
 val javacSettings = Seq(
   "-source",
   "1.8",
@@ -92,19 +78,11 @@ val scalacOpts = Seq(
   "-Ywarn-macros:after"
 )
 
-val silencerVersion = "1.7.6"
-
-ThisBuild / libraryDependencies ++= {
-  if (isScala3.value) Nil
-  else
-    Seq(
-      compilerPlugin(("com.github.ghik" % "silencer-plugin" % silencerVersion).cross(CrossVersion.full)),
-      ("com.github.ghik" % "silencer-lib" % silencerVersion % Provided).cross(CrossVersion.full)
-    )
-}
-
 // Customise sbt-dynver's behaviour to make it work with tags which aren't v-prefixed
 ThisBuild / dynverVTagPrefix := false
+
+// We are publishing snapshots to Sonatype
+ThisBuild / dynverSonatypeSnapshots := true
 
 // Sanity-check: assert that version comes from a tag (e.g. not a too-shallow clone)
 // https://github.com/dwijnand/sbt-dynver/#sanity-checking-the-version
@@ -128,7 +106,7 @@ lazy val commonSettings = Def.settings(
     Tests.Argument(TestFrameworks.ScalaTest, "-l", "play.api.libs.json.UnstableInScala213")
   ),
   headerLicense := Some(HeaderLicense.Custom(s"Copyright (C) 2009-2021 Lightbend Inc. <https://www.lightbend.com>")),
-  scalaVersion := Dependencies.Scala212,
+  scalaVersion  := Dependencies.Scala212,
   crossScalaVersions := Seq(Dependencies.Scala212, Dependencies.Scala213, Dependencies.Scala3),
   Compile / javacOptions ++= javacSettings,
   Test / javacOptions ++= javacSettings,
@@ -137,8 +115,7 @@ lazy val commonSettings = Def.settings(
   Compile / doc / scalacOptions ++= Seq(
     // Work around 2.12 bug which prevents javadoc in nested java classes from compiling.
     "-no-java-comments",
-  ),
-  sonatypeProfileName := "com.typesafe"
+  )
 )
 
 lazy val root = project
@@ -163,32 +140,31 @@ lazy val `play-json` = crossProject(JVMPlatform, JSPlatform)
   .settings(
     commonSettings ++ playJsonMimaSettings ++ Def.settings(
       libraryDependencies ++= (
-        if (isScala3.value) Nil
+        if (isScala3.value) Seq.empty
         else
-          Seq(
-            "org.scala-lang" % "scala-reflect" % scalaVersion.value,
-            "com.chuusai"    %% "shapeless"    % "2.3.7" % Test,
-          )
+          Seq("org.scala-lang" % "scala-reflect" % scalaVersion.value)
       ),
       libraryDependencies ++= Seq(
-        "org.scalatest"     %%% "scalatest"       % "3.2.10"   % Test,
-        "org.scalatestplus" %%% "scalacheck-1-15" % "3.2.10.0" % Test,
+        "org.scalatest"     %%% "scalatest"       % "3.2.11"   % Test,
+        "org.scalatestplus" %%% "scalacheck-1-15" % "3.2.11.0" % Test,
         "org.scalacheck"    %%% "scalacheck"      % "1.15.4"   % Test,
+        ("com.chuusai" %% "shapeless" % "2.3.7").cross(CrossVersion.for3Use2_13) % Test
       ),
       libraryDependencies += {
-        if (isScala3.value)
+        if (isScala3.value) {
           "org.scala-lang" %% "scala3-compiler" % scalaVersion.value % Provided
-        else
+        } else {
           "org.scala-lang" % "scala-compiler" % scalaVersion.value % Provided
+        }
       },
       libraryDependencies ++=
         (CrossVersion.partialVersion(scalaVersion.value) match {
-          case Some((2, 13)) => Seq()
-          case Some((3, _))  => Nil
+          case Some((2, 13)) => Seq.empty
+          case Some((3, _))  => Seq.empty
           case _             => Seq(compilerPlugin(("org.scalamacros" % "paradise" % "2.1.1").cross(CrossVersion.full)))
         }),
       Compile / unmanagedSourceDirectories += {
-        //val sourceDir = (sourceDirectory in Compile).value
+        // val sourceDir = (sourceDirectory in Compile).value
         // ^ gives jvm/src/main, for some reason
         val sourceDir = baseDirectory.value.getParentFile / "shared/src/main"
         CrossVersion.partialVersion(scalaVersion.value) match {
@@ -202,34 +178,33 @@ lazy val `play-json` = crossProject(JVMPlatform, JSPlatform)
         val file = dir / "Generated.scala"
         val (writes, reads) = 1
           .to(22)
-          .map {
-            i =>
-              def commaSeparated(s: Int => String)   = 1.to(i).map(s).mkString(", ")
-              def newlineSeparated(s: Int => String) = 1.to(i).map(s).mkString("\n        ")
-              val writerTypes                        = commaSeparated(j => s"T$j: Writes")
-              val readerTypes                        = commaSeparated(j => s"T$j: Reads")
-              val typeTuple                          = commaSeparated(j => s"T$j")
-              val written                            = commaSeparated(j => s"implicitly[Writes[T$j]].writes(x._$j)")
-              val readValues                         = commaSeparated(j => s"t$j")
-              val readGenerators                     = newlineSeparated(j => s"t$j <- implicitly[Reads[T$j]].reads(arr(${j - 1}))")
+          .map { i =>
+            def commaSeparated(s: Int => String)   = 1.to(i).map(s).mkString(", ")
+            def newlineSeparated(s: Int => String) = 1.to(i).map(s).mkString("\n        ")
+            val writerTypes                        = commaSeparated(j => s"T$j: Writes")
+            val readerTypes                        = commaSeparated(j => s"T$j: Reads")
+            val typeTuple                          = commaSeparated(j => s"T$j")
+            val written                            = commaSeparated(j => s"implicitly[Writes[T$j]].writes(x._$j)")
+            val readValues                         = commaSeparated(j => s"t$j")
+            val readGenerators = newlineSeparated(j => s"t$j <- implicitly[Reads[T$j]].reads(arr(${j - 1}))")
 
-              val writes =
-                s"""  implicit def Tuple${i}W[$writerTypes]: Writes[Tuple$i[$typeTuple]] = Writes[Tuple${i}[$typeTuple]](
-                   |    x => JsArray(Array($written))
-                   |  )""".stripMargin
+            val writes =
+              s"""  implicit def Tuple${i}W[$writerTypes]: Writes[Tuple$i[$typeTuple]] = Writes[Tuple${i}[$typeTuple]](
+                 |    x => JsArray(Array($written))
+                 |  )""".stripMargin
 
-              val reads =
-                s"""  implicit def Tuple${i}R[$readerTypes]: Reads[Tuple$i[$typeTuple]] = Reads[Tuple${i}[$typeTuple]] {
-                   |    case JsArray(arr) if arr.size == $i =>
-                   |      for {
-                   |        $readGenerators
-                   |      } yield Tuple$i($readValues)
-                   |
-                   |    case _ =>
-                   |      JsError(Seq(JsPath() -> Seq(JsonValidationError("Expected array of $i elements"))))
-                   |  }""".stripMargin
+            val reads =
+              s"""  implicit def Tuple${i}R[$readerTypes]: Reads[Tuple$i[$typeTuple]] = Reads[Tuple${i}[$typeTuple]] {
+                 |    case JsArray(arr) if arr.size == $i =>
+                 |      for {
+                 |        $readGenerators
+                 |      } yield Tuple$i($readValues)
+                 |
+                 |    case _ =>
+                 |      JsError(Seq(JsPath() -> Seq(JsonValidationError("Expected array of $i elements"))))
+                 |  }""".stripMargin
 
-              (writes, reads)
+            (writes, reads)
           }
           .unzip
 
@@ -254,17 +229,25 @@ lazy val `play-json` = crossProject(JVMPlatform, JSPlatform)
 
 lazy val `play-jsonJS` = `play-json`.js
 
-lazy val `play-jsonJVM` = `play-json`.jvm.settings(
-  libraryDependencies ++=
-    jacksons ++ {
-      if (isScala3.value)
-        specs2(scalaVersion.value).map(_.exclude("org.scala-lang.modules", "scala-xml_2.13"))
-      else
-        specs2(scalaVersion.value)
-    } :+ (
-      "ch.qos.logback" % "logback-classic" % "1.2.6" % Test
-    ),
-  Test / unmanagedSourceDirectories ++= (docsP / PlayDocsKeys.scalaManualSourceDirectories).value,
+lazy val `play-jsonJVM` = `play-json`.jvm
+  .settings(
+    libraryDependencies ++=
+      jacksons ++ {
+        if (isScala3.value)
+          specs2(scalaVersion.value).map(_.exclude("org.scala-lang.modules", "scala-xml_2.13"))
+        else
+          specs2(scalaVersion.value)
+      } :+ (
+        "ch.qos.logback" % "logback-classic" % "1.2.11" % Test
+      ),
+    Test / unmanagedSourceDirectories ++= (docsP / PlayDocsKeys.scalaManualSourceDirectories).value,
+  )
+  .settings(enableJol)
+
+def enableJol = Seq(
+  libraryDependencies += "org.openjdk.jol" % "jol-core" % "0.16" % Test,
+  Test / javaOptions += "-Djdk.attach.allowAttachSelf",
+  compileOrder := CompileOrder.JavaThenScala,
 )
 
 lazy val `play-json-joda` = project
@@ -317,8 +300,8 @@ lazy val docs = project
       // Copy the docs to a place so they have the correct api/scala prefix
       val apiDocsStage = target.value / "api-docs-stage"
       val cacheFile    = streams.value.cacheDirectory / "api-docs-stage"
-      val mappings = apiDocs.allPaths.filter(!_.isDirectory).get.pair(relativeTo(apiDocs)).map {
-        case (file, path) => file -> apiDocsStage / "api" / "scala" / path
+      val mappings = apiDocs.allPaths.filter(!_.isDirectory).get.pair(relativeTo(apiDocs)).map { case (file, path) =>
+        file -> apiDocsStage / "api" / "scala" / path
       }
       Sync.sync(CacheStore(cacheFile))(mappings)
       PlayDocsDirectoryResource(apiDocsStage)
@@ -328,4 +311,4 @@ lazy val docs = project
   .settings(commonSettings)
   .dependsOn(`play-jsonJVM`)
 
-addCommandAlias("validateCode", ";headerCheck;test:headerCheck;+scalafmtCheckAll;scalafmtSbtCheck")
+addCommandAlias("validateCode", ";headerCheck;Test/headerCheck;+scalafmtCheckAll;scalafmtSbtCheck")
