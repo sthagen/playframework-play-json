@@ -18,11 +18,11 @@ val isScala3 = Def.setting {
 
 def specs2(scalaVersion: String) =
   Seq("core", "junit").map { n =>
-    ("org.specs2" %% s"specs2-$n" % "4.14.1").cross(CrossVersion.for3Use2_13) % Test
+    ("org.specs2" %% s"specs2-$n" % "4.15.0") % Test
   }
 
-val jacksonVersion         = "2.11.4"
-val jacksonDatabindVersion = jacksonVersion
+val jacksonVersion         = "2.13.2"
+val jacksonDatabindVersion = "2.13.2.2"
 
 val jacksonDatabind = Seq(
   "com.fasterxml.jackson.core" % "jackson-databind" % jacksonDatabindVersion
@@ -35,7 +35,7 @@ val jacksons = Seq(
 ).map(_ % jacksonVersion) ++ jacksonDatabind
 
 val joda = Seq(
-  "joda-time" % "joda-time" % "2.10.13"
+  "joda-time" % "joda-time" % "2.10.14"
 )
 
 // Common settings
@@ -147,8 +147,8 @@ lazy val `play-json` = crossProject(JVMPlatform, JSPlatform)
       libraryDependencies ++= Seq(
         "org.scalatest"     %%% "scalatest"       % "3.2.11"   % Test,
         "org.scalatestplus" %%% "scalacheck-1-15" % "3.2.11.0" % Test,
-        "org.scalacheck"    %%% "scalacheck"      % "1.15.4"   % Test,
-        ("com.chuusai" %% "shapeless" % "2.3.7").cross(CrossVersion.for3Use2_13) % Test
+        "org.scalacheck"    %%% "scalacheck"      % "1.16.0"   % Test,
+        ("com.chuusai" %% "shapeless" % "2.3.9").cross(CrossVersion.for3Use2_13) % Test
       ),
       libraryDependencies += {
         if (isScala3.value) {
@@ -311,4 +311,4 @@ lazy val docs = project
   .settings(commonSettings)
   .dependsOn(`play-jsonJVM`)
 
-addCommandAlias("validateCode", ";headerCheck;Test/headerCheck;+scalafmtCheckAll;scalafmtSbtCheck")
+addCommandAlias("validateCode", "headerCheckAll; scalafmtSbtCheck; scalafmtCheckAll")
