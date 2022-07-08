@@ -18,7 +18,7 @@ val isScala3 = Def.setting {
 
 def specs2(scalaVersion: String) =
   Seq("core", "junit").map { n =>
-    ("org.specs2" %% s"specs2-$n" % "4.15.0") % Test
+    ("org.specs2" %% s"specs2-$n" % "4.16.1") % Test
   }
 
 val jacksonDatabindVersion = "2.13.3"
@@ -129,6 +129,11 @@ lazy val `play-json` = crossProject(JVMPlatform, JSPlatform)
   .in(file("play-json"))
   .enablePlugins(Omnidoc, Playdoc)
   .configs(Docs)
+  .jsSettings(
+    libraryDependencies ++= Seq(
+      ("org.scala-js" %%% "scalajs-java-securerandom" % "1.0.0").cross(CrossVersion.for3Use2_13),
+    )
+  )
   .settings(
     commonSettings ++ playJsonMimaSettings ++ Def.settings(
       libraryDependencies ++= (

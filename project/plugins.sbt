@@ -5,7 +5,7 @@
 resolvers ++= DefaultOptions.resolvers(snapshot = true)
 resolvers += Resolver.typesafeRepo("releases")
 
-addSbtPlugin("com.typesafe.play" % "play-docs-sbt-plugin" % sys.props.getOrElse("play.version", "2.8.15"))
+addSbtPlugin("com.typesafe.play" % "play-docs-sbt-plugin" % sys.props.getOrElse("play.version", "2.8.16"))
 
 addSbtPlugin("pl.project13.scala" % "sbt-jmh" % "0.4.3")
 
@@ -13,7 +13,7 @@ addSbtPlugin("com.typesafe" % "sbt-mima-plugin" % "1.1.0")
 
 addSbtPlugin("de.heikoseeberger" % "sbt-header" % "5.7.0")
 
-addSbtPlugin("org.scala-js" % "sbt-scalajs" % "1.9.0")
+addSbtPlugin("org.scala-js" % "sbt-scalajs" % "1.10.1")
 
 addSbtPlugin("org.portable-scala" % "sbt-scalajs-crossproject" % "1.2.0")
 
