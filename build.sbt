@@ -18,7 +18,7 @@ val isScala3 = Def.setting {
 
 def specs2(scalaVersion: String) =
   Seq("core", "junit").map { n =>
-    ("org.specs2" %% s"specs2-$n" % "4.16.1") % Test
+    ("org.specs2" %% s"specs2-$n" % "4.17.0") % Test
   }
 
 val jacksonDatabindVersion = "2.13.4"
@@ -35,7 +35,7 @@ val jacksons = Seq(
 ).map(_ % jacksonVersion) ++ jacksonDatabind
 
 val joda = Seq(
-  "joda-time" % "joda-time" % "2.11.1"
+  "joda-time" % "joda-time" % "2.11.2"
 )
 
 // Common settings
@@ -98,7 +98,7 @@ lazy val commonSettings = Def.settings(
     Tests.Argument(TestFrameworks.ScalaTest, "-l", "play.api.libs.json.UnstableInScala213")
   ),
   headerLicense := Some(HeaderLicense.Custom(s"Copyright (C) 2009-2021 Lightbend Inc. <https://www.lightbend.com>")),
-  scalaVersion  := Dependencies.Scala212,
+  scalaVersion  := Dependencies.Scala213,
   crossScalaVersions := Seq(Dependencies.Scala212, Dependencies.Scala213, Dependencies.Scala3),
   Compile / javacOptions ++= javacSettings,
   Test / javacOptions ++= javacSettings,
@@ -143,9 +143,9 @@ lazy val `play-json` = crossProject(JVMPlatform, JSPlatform)
           Seq("org.scala-lang" % "scala-reflect" % scalaVersion.value)
       ),
       libraryDependencies ++= Seq(
-        "org.scalatest"     %%% "scalatest"       % "3.2.13"   % Test,
+        "org.scalatest"     %%% "scalatest"       % "3.2.14"   % Test,
         "org.scalatestplus" %%% "scalacheck-1-16" % "3.2.13.0" % Test,
-        "org.scalacheck"    %%% "scalacheck"      % "1.16.0"   % Test,
+        "org.scalacheck"    %%% "scalacheck"      % "1.17.0"   % Test,
         ("com.chuusai" %% "shapeless" % "2.3.9").cross(CrossVersion.for3Use2_13) % Test
       ),
       libraryDependencies += {
@@ -236,7 +236,7 @@ lazy val `play-jsonJVM` = `play-json`.jvm
         else
           specs2(scalaVersion.value)
       } :+ (
-        "ch.qos.logback" % "logback-classic" % "1.4.0" % Test
+        "ch.qos.logback" % "logback-classic" % "1.4.4" % Test
       ),
     Test / unmanagedSourceDirectories ++= (docsP / PlayDocsKeys.scalaManualSourceDirectories).value,
   )
