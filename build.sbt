@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2009-2021 Lightbend Inc. <https://www.lightbend.com>
+ * Copyright (C) from 2022 The Play Framework Contributors <https://github.com/playframework>, 2011-2021 Lightbend Inc. <https://www.lightbend.com>
  */
 import sbt._
 import sbt.util._
@@ -18,7 +18,7 @@ val isScala3 = Def.setting {
 
 def specs2(scalaVersion: String) =
   Seq("core", "junit").map { n =>
-    ("org.specs2" %% s"specs2-$n" % "4.19.2") % Test
+    ("org.specs2" %% s"specs2-$n" % "4.20.0") % Test
   }
 
 val jacksonDatabindVersion = "2.14.2"
@@ -45,6 +45,7 @@ def playJsonMimaSettings = Seq(
   mimaPreviousArtifacts := ((crossProjectPlatform.?.value, previousStableVersion.value) match {
     case _ if isScala3.value               => Set.empty // no releases for Scala 3 yet
     case (Some(JSPlatform), Some("2.8.1")) => Set.empty
+    case (Some(NativePlatform), _)         => Set.empty // no release for Scala Native yet
     case (_, Some(previousVersion)) =>
       val stableVersion = if (previousVersion.startsWith("2.10.0-RC")) "2.9.2" else previousVersion
       Set(organization.value %%% moduleName.value % stableVersion)
@@ -107,8 +108,12 @@ lazy val commonSettings = Def.settings(
     // Filtering tests that are not stable in Scala 2.13 yet.
     Tests.Argument(TestFrameworks.ScalaTest, "-l", "play.api.libs.json.UnstableInScala213")
   ),
-  headerLicense := Some(HeaderLicense.Custom(s"Copyright (C) 2009-2021 Lightbend Inc. <https://www.lightbend.com>")),
-  scalaVersion  := Dependencies.Scala213,
+  headerLicense := Some(
+    HeaderLicense.Custom(
+      s"Copyright (C) from 2022 The Play Framework Contributors <https://github.com/playframework>, 2011-2021 Lightbend Inc. <https://www.lightbend.com>"
+    )
+  ),
+  scalaVersion       := Dependencies.Scala213,
   crossScalaVersions := Seq(Dependencies.Scala212, Dependencies.Scala213, Dependencies.Scala3),
   Compile / javacOptions ++= javacSettings,
   Test / javacOptions ++= javacSettings,
@@ -128,14 +133,16 @@ lazy val root = project
   .aggregate(
     `play-jsonJS`,
     `play-jsonJVM`,
+    `play-jsonNative`,
     `play-functionalJS`,
     `play-functionalJVM`,
+    `play-functionalNative`,
     `play-json-joda`
   )
   .settings(commonSettings)
   .settings(publish / skip := true)
 
-lazy val `play-json` = crossProject(JVMPlatform, JSPlatform)
+lazy val `play-json` = crossProject(JVMPlatform, JSPlatform, NativePlatform)
   .crossType(CrossType.Full)
   .in(file("play-json"))
   .enablePlugins(Omnidoc, Playdoc)
@@ -143,6 +150,11 @@ lazy val `play-json` = crossProject(JVMPlatform, JSPlatform)
   .jsSettings(
     libraryDependencies ++= Seq(
       ("org.scala-js" %%% "scalajs-java-securerandom" % "1.0.0").cross(CrossVersion.for3Use2_13),
+    )
+  )
+  .nativeSettings(
+    libraryDependencies ++= Seq(
+      "org.typelevel" %%% "jawn-parser" % "1.4.0"
     )
   )
   .settings(
@@ -234,7 +246,8 @@ lazy val `play-json` = crossProject(JVMPlatform, JSPlatform)
   )
   .dependsOn(`play-functional`)
 
-lazy val `play-jsonJS` = `play-json`.js
+lazy val `play-jsonJS`     = `play-json`.js
+lazy val `play-jsonNative` = `play-json`.native
 
 lazy val `play-jsonJVM` = `play-json`.jvm
   .settings(
@@ -267,7 +280,7 @@ lazy val `play-json-joda` = project
   )
   .dependsOn(`play-jsonJVM`)
 
-lazy val `play-functional` = crossProject(JVMPlatform, JSPlatform)
+lazy val `play-functional` = crossProject(JVMPlatform, JSPlatform, NativePlatform)
   .crossType(CrossType.Pure)
   .in(file("play-functional"))
   .settings(
@@ -275,8 +288,9 @@ lazy val `play-functional` = crossProject(JVMPlatform, JSPlatform)
   )
   .enablePlugins(Omnidoc)
 
-lazy val `play-functionalJVM` = `play-functional`.jvm
-lazy val `play-functionalJS`  = `play-functional`.js
+lazy val `play-functionalJVM`    = `play-functional`.jvm
+lazy val `play-functionalJS`     = `play-functional`.js
+lazy val `play-functionalNative` = `play-functional`.native
 
 lazy val benchmarks = project
   .in(file("benchmarks"))

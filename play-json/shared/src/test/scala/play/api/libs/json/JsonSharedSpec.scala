@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2009-2021 Lightbend Inc. <https://www.lightbend.com>
+ * Copyright (C) from 2022 The Play Framework Contributors <https://github.com/playframework>, 2011-2021 Lightbend Inc. <https://www.lightbend.com>
  */
 
 package play.api.libs.json
@@ -307,10 +307,10 @@ class JsonSharedSpec extends AnyWordSpec with Matchers with org.scalatestplus.sc
     "asciiStringify should escape ascii characters properly" in json { js =>
       def jo = Json.obj(
         "key1" -> "ab\n\tcd",
-        "key2" -> "\"\r"
+        "key2" -> "\"\r\f"
       )
 
-      js.asciiStringify(jo).mustEqual("""{"key1":"ab\n\tcd","key2":"\"\r"}""")
+      js.asciiStringify(jo).mustEqual("""{"key1":"ab\n\tcd","key2":"\"\r\f"}""")
     }
   }
 
