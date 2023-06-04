@@ -21,7 +21,7 @@ def specs2(scalaVersion: String) =
     ("org.specs2" %% s"specs2-$n" % "4.20.0") % Test
   }
 
-val jacksonDatabindVersion = "2.14.2"
+val jacksonDatabindVersion = "2.14.3"
 val jacksonDatabind = Seq(
   "com.fasterxml.jackson.core" % "jackson-databind" % jacksonDatabindVersion
 )
@@ -154,7 +154,7 @@ lazy val `play-json` = crossProject(JVMPlatform, JSPlatform, NativePlatform)
   )
   .nativeSettings(
     libraryDependencies ++= Seq(
-      "org.typelevel" %%% "jawn-parser" % "1.4.0"
+      "org.typelevel" %%% "jawn-parser" % "1.5.0"
     )
   )
   .settings(
