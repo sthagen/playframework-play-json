@@ -4,7 +4,7 @@
 
 resolvers ++= DefaultOptions.resolvers(snapshot = true)
 
-addSbtPlugin("org.playframework" % "play-docs-sbt-plugin" % sys.props.getOrElse("play.version", "3.0.0-M1"))
+addSbtPlugin("org.playframework" % "play-docs-sbt-plugin" % sys.props.getOrElse("play.version", "3.0.0-M3"))
 
 addSbtPlugin("pl.project13.scala" % "sbt-jmh" % "0.4.6")
 
@@ -16,7 +16,7 @@ addSbtPlugin("org.scala-js" % "sbt-scalajs" % "1.13.2")
 
 addSbtPlugin("org.portable-scala" % "sbt-scalajs-crossproject" % "1.3.2")
 
-addSbtPlugin("org.scala-native" % "sbt-scala-native" % "0.4.15")
+addSbtPlugin("org.scala-native" % "sbt-scala-native" % "0.4.16")
 
 addSbtPlugin("org.portable-scala" % "sbt-scala-native-crossproject" % "1.3.2")
 
