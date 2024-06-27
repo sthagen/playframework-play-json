@@ -51,7 +51,7 @@ def playJsonMimaSettings = Seq(
 
 val javacSettings = Seq(
   "-source",
-  "11",
+  "17",
   "-Xlint:deprecation",
   "-Xlint:unchecked",
 )
@@ -59,7 +59,7 @@ val javacSettings = Seq(
 val scalacOpts = Seq(
   "-language:higherKinds",
   "-release",
-  "11",
+  "17",
   "-Ywarn-unused:imports",
   "-Xlint:nullary-unit",
   "-Xlint",
@@ -96,7 +96,7 @@ lazy val commonSettings = Def.settings(
   crossScalaVersions := Seq(Dependencies.Scala212, Dependencies.Scala213, Dependencies.Scala3),
   Compile / javacOptions ++= javacSettings,
   Test / javacOptions ++= javacSettings,
-  Compile / compile / javacOptions ++= Seq("--release", "11"), // sbt #1785, avoids passing to javadoc
+  Compile / compile / javacOptions ++= Seq("--release", "17"), // sbt #1785, avoids passing to javadoc
   scalacOptions ++= (if (isScala3.value) Nil else scalacOpts),
   Compile / doc / scalacOptions ++= Seq(
     // Work around 2.12 bug which prevents javadoc in nested java classes from compiling.
@@ -133,7 +133,7 @@ lazy val `play-json` = crossProject(JVMPlatform, JSPlatform, NativePlatform)
   )
   .nativeSettings(
     libraryDependencies ++= Seq(
-      "org.typelevel" %%% "jawn-parser" % "1.5.1"
+      "org.typelevel" %%% "jawn-parser" % "1.6.0"
     )
   )
   .settings(
@@ -144,9 +144,9 @@ lazy val `play-json` = crossProject(JVMPlatform, JSPlatform, NativePlatform)
           Seq("org.scala-lang" % "scala-reflect" % scalaVersion.value)
       ),
       libraryDependencies ++= Seq(
-        "org.scalatest"     %%% "scalatest"       % "3.2.18"   % Test,
-        "org.scalatestplus" %%% "scalacheck-1-16" % "3.2.14.0" % Test,
-        "org.scalacheck"    %%% "scalacheck"      % "1.17.0"   % Test,
+        "org.scalatest"     %%% "scalatest"       % "3.2.19"   % Test,
+        "org.scalatestplus" %%% "scalacheck-1-18" % "3.2.19.0" % Test,
+        "org.scalacheck"    %%% "scalacheck"      % "1.18.0"   % Test,
       ),
       libraryDependencies += {
         if (isScala3.value) {
@@ -223,6 +223,9 @@ lazy val `play-json` = crossProject(JVMPlatform, JSPlatform, NativePlatform)
       }.taskValue
     )
   )
+  .nativeSettings(
+    mimaPreviousArtifacts := Set.empty // remove once version with Scala Native 0.5 is released
+  )
   .dependsOn(`play-functional`)
 
 lazy val `play-jsonJS`     = `play-json`.js
@@ -264,6 +267,9 @@ lazy val `play-functional` = crossProject(JVMPlatform, JSPlatform, NativePlatfor
   .in(file("play-functional"))
   .settings(
     commonSettings ++ playJsonMimaSettings
+  )
+  .nativeSettings(
+    mimaPreviousArtifacts := Set.empty // remove once version with Scala Native 0.5 is released
   )
   .enablePlugins(Omnidoc)
 
