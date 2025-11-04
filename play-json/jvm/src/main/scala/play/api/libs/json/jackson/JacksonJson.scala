@@ -29,6 +29,10 @@ import com.fasterxml.jackson.databind.json.JsonMapper
 import com.fasterxml.jackson.databind.module.SimpleModule
 import com.fasterxml.jackson.databind.ser.Serializers
 import com.fasterxml.jackson.databind.util.TokenBuffer
+import com.fasterxml.jackson.datatype.jdk8.Jdk8Module
+import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule
+import com.fasterxml.jackson.module.paramnames.ParameterNamesModule
+import com.fasterxml.jackson.module.scala.DefaultScalaModule
 
 import play.api.libs.json._
 
@@ -52,6 +56,7 @@ import play.api.libs.json._
  * }}}
  */
 sealed class PlayJsonMapperModule(jsonConfig: JsonConfig) extends SimpleModule("PlayJson", Version.unknownVersion()) {
+  def this() = this(JsonConfig.settings)
   override def setupModule(context: SetupContext): Unit = {
     context.addDeserializers(new PlayDeserializers(jsonConfig))
     context.addSerializers(new PlaySerializers(jsonConfig))
@@ -265,7 +270,7 @@ private[jackson] class PlaySerializers(jsonSettings: JsonConfig) extends Seriali
   }
 }
 
-private[json] object JacksonJson {
+private[play] object JacksonJson {
   private var instance = JacksonJson(JsonConfig.settings)
 
   /** Overrides the config. */
@@ -273,7 +278,7 @@ private[json] object JacksonJson {
     instance = JacksonJson(jsonConfig)
   }
 
-  private[json] def get: JacksonJson = instance
+  private[play] def get: JacksonJson = instance
 }
 
 private[play] case class JacksonJson(jsonConfig: JsonConfig) {
@@ -281,10 +286,24 @@ private[play] case class JacksonJson(jsonConfig: JsonConfig) {
     .streamReadConstraints(jsonConfig.streamReadConstraints)
     .streamWriteConstraints(jsonConfig.streamWriteConstraints)
     .build()
-  private[play] val mapper = JsonMapper
+  private[play] var mapper: ObjectMapper = JsonMapper
     .builder(jsonFactory)
-    .addModule(new PlayJsonMapperModule(jsonConfig))
+    .addModules(
+      new ParameterNamesModule(),
+      new Jdk8Module(),
+      new JavaTimeModule(),
+      new DefaultScalaModule(),
+      new PlayJsonMapperModule(jsonConfig),
+    )
+    .disable(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES)
+    .disable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS)
+    .disable(SerializationFeature.WRITE_DURATIONS_AS_TIMESTAMPS)
+    .disable(SerializationFeature.FAIL_ON_EMPTY_BEANS)
     .build()
+
+  private[play] def setObjectMapper(mapper: ObjectMapper): Unit = {
+    this.mapper = mapper
+  }
 
   private def stringJsonGenerator(out: java.io.StringWriter) =
     jsonFactory.createGenerator(out)
