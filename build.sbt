@@ -159,7 +159,7 @@ lazy val `play-json` = crossProject(JVMPlatform, JSPlatform, NativePlatform)
   )
   .nativeSettings(
     libraryDependencies ++= Seq(
-      "org.typelevel" %%% "jawn-parser" % "1.6.0"
+      "org.typelevel" %%% "jawn-parser" % "1.7.0"
     )
   )
   .settings(
@@ -263,7 +263,7 @@ lazy val `play-jsonJVM` = `play-json`.jvm
         else
           specs2(scalaVersion.value)
       } :+ (
-        "ch.qos.logback" % "logback-classic" % "1.5.34" % Test
+        "ch.qos.logback" % "logback-classic" % "1.5.35" % Test
       ),
     Test / unmanagedSourceDirectories ++= (docsP / PlayDocsKeys.scalaManualSourceDirectories).value,
   )
