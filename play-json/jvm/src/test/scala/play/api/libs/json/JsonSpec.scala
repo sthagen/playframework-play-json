@@ -6,6 +6,7 @@ package play.api.libs.json
 
 import com.fasterxml.jackson.core.exc.StreamConstraintsException
 
+import java.io.ByteArrayInputStream
 import java.math.BigInteger
 import java.util.Calendar
 import java.util.Date
@@ -13,9 +14,10 @@ import java.util.TimeZone
 
 import com.fasterxml.jackson.databind.JsonNode
 import com.fasterxml.jackson.databind.ObjectMapper
+import com.fasterxml.jackson.databind.node.{ ArrayNode, NumericNode, ObjectNode }
 import play.api.libs.functional.syntax._
 import play.api.libs.json.Json._
-import play.api.libs.json.jackson.JacksonJson
+import play.api.libs.json.jackson.{ JacksonJson, PlayJsonMapperModule }
 
 class JsonSpec extends org.specs2.mutable.Specification {
 
@@ -32,6 +34,17 @@ class JsonSpec extends org.specs2.mutable.Specification {
   case class BigNumbers(bigInt: BigInt, bigDec: BigDecimal)
   case class IntNumbers(long: Long, integer: Int)
   case class FloatNumbers(float: Float, double: Double)
+
+  private class CloseTrackingInputStream(data: Array[Byte]) extends ByteArrayInputStream(data) {
+    private var closed = false
+
+    def isClosed: Boolean = closed
+
+    override def close(): Unit = {
+      closed = true
+      super.close()
+    }
+  }
 
   val exceedsDigitsLimit: BigDecimal         = BigDecimal("9" * 1000000)
   val exceedsDigitsLimitNegative: BigDecimal = exceedsDigitsLimit.unary_-
@@ -469,36 +482,66 @@ class JsonSpec extends org.specs2.mutable.Specification {
     }
 
     "Serialize and deserialize Jackson ObjectNodes" in {
-      val on = mapper
+      val on: ObjectNode = mapper
         .createObjectNode()
         .put("foo", 1)
         .put("bar", "two")
-      val json = Json.obj("foo" -> 1, "bar" -> "two")
+      val json                             = Json.obj("foo" -> 1, "bar" -> "two")
+      val deserialized: JsResult[JsonNode] = fromJson[JsonNode](json)
 
       toJson(on).must_==(json) and (
-        fromJson[JsonNode](json).map(_.toString).must_==(JsSuccess(on.toString))
+        deserialized.map(_.isInstanceOf[ObjectNode]).must_==(JsSuccess(true))
+      ) and (
+        deserialized.map(_.toString).must_==(JsSuccess(on.toString))
       )
     }
 
     "Serialize and deserialize Jackson ArrayNodes" in {
-      val an = mapper
+      val an: ArrayNode = mapper
         .createArrayNode()
         .add("one")
         .add(2)
-      val json = Json.arr("one", 2)
+      val json                             = Json.arr("one", 2)
+      val deserialized: JsResult[JsonNode] = fromJson[JsonNode](json)
+
       toJson(an).must(equalTo(json)) and (
-        fromJson[JsonNode](json).map(_.toString).must_==(JsSuccess(an.toString))
+        deserialized.map(_.isInstanceOf[ArrayNode]).must_==(JsSuccess(true))
+      ) and (
+        deserialized.map(_.toString).must_==(JsSuccess(an.toString))
       )
     }
 
     "Deserialize integer JsNumber as Jackson number node" in {
-      val jsNum = JsNumber(new java.math.BigDecimal("50"))
-      fromJson[JsonNode](jsNum).map(_.toString).must_==(JsSuccess("50"))
+      val jsNum                            = JsNumber(new java.math.BigDecimal("50"))
+      val deserialized: JsResult[JsonNode] = fromJson[JsonNode](jsNum)
+
+      deserialized.map(_.isInstanceOf[NumericNode]).must_==(JsSuccess(true)) and (
+        deserialized.map(_.toString).must_==(JsSuccess("50"))
+      )
     }
 
     "Deserialize float JsNumber as Jackson number node" in {
-      val jsNum = JsNumber(new java.math.BigDecimal("12.345"))
-      fromJson[JsonNode](jsNum).map(_.toString).must_==(JsSuccess("12.345"))
+      val jsNum                            = JsNumber(new java.math.BigDecimal("12.345"))
+      val deserialized: JsResult[JsonNode] = fromJson[JsonNode](jsNum)
+
+      deserialized.map(_.isInstanceOf[NumericNode]).must_==(JsSuccess(true)) and (
+        deserialized.map(_.toString).must_==(JsSuccess("12.345"))
+      )
+    }
+
+    "Use a custom ObjectMapper subclass for ASCII serialization" in {
+      val jacksonJson  = JacksonJson(JsonConfig.settings)
+      val customMapper = new ObjectMapper() {}
+
+      jacksonJson.setObjectMapper(customMapper)
+      customMapper.registerModule(new PlayJsonMapperModule())
+
+      jacksonJson
+        .generateFromJsValue(JsString("é"), escapeNonASCII = true)
+        .mustEqual("\"\\u00E9\"")
+
+      jacksonJson.setObjectMapper(null)
+      jacksonJson.mapper().eq(customMapper).mustEqual(false)
     }
 
     "Serialize JsNumbers with integers correctly" in {
@@ -550,7 +593,7 @@ class JsonSpec extends org.specs2.mutable.Specification {
       }
     }
 
-    "parse from InputStream" in {
+    "parse from InputStream and close it" in {
       val js = Json.obj(
         "key1" -> "value1",
         "key2" -> true,
@@ -561,11 +604,21 @@ class JsonSpec extends org.specs2.mutable.Specification {
           "key7" -> BigDecimal("12345678901234567890.123456789")
         )
       )
-      def stream = new java.io.ByteArrayInputStream(
+      val stream = new CloseTrackingInputStream(
         js.toString.getBytes("UTF-8")
       )
 
       Json.parse(stream).mustEqual(js)
+      stream.isClosed.mustEqual(true)
+    }
+
+    "close an InputStream when parsing fails" in {
+      val stream = new CloseTrackingInputStream(
+        """{"key": @, "remaining": true}""".getBytes("UTF-8")
+      )
+
+      Json.tryParse(stream).isFailure.mustEqual(true)
+      stream.isClosed.mustEqual(true)
     }
 
     "keep isomorphism between serialized and deserialized data" in {

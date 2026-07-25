@@ -6,7 +6,6 @@ package play.api.libs.json.jackson
 
 import java.io.InputStream
 import java.io.OutputStream
-import java.io.StringWriter
 
 import scala.annotation.switch
 import scala.annotation.tailrec
@@ -18,9 +17,9 @@ import com.fasterxml.jackson.core.JsonFactoryBuilder
 import com.fasterxml.jackson.core.JsonGenerator
 import com.fasterxml.jackson.core.JsonParser
 import com.fasterxml.jackson.core.JsonTokenId
+import com.fasterxml.jackson.core.StreamWriteFeature
 import com.fasterxml.jackson.core.Version
 import com.fasterxml.jackson.core.json.JsonWriteFeature
-import com.fasterxml.jackson.core.util.DefaultPrettyPrinter
 
 import com.fasterxml.jackson.databind.Module.SetupContext
 import com.fasterxml.jackson.databind._
@@ -314,68 +313,36 @@ private[play] case class JacksonJson(defaultMapperJsonConfig: JsonConfig) {
     this.currentMapper = mapper
   }
 
-  private def stringJsonGenerator(out: StringWriter) =
-    mapper().getFactory.createGenerator(out)
-
-  private def stringJsonGenerator(out: OutputStream) =
-    mapper().getFactory.createGenerator(out)
-
   def parseJsValue(data: Array[Byte]): JsValue =
-    mapper().readValue(mapper().getFactory.createParser(data), classOf[JsValue])
+    mapper().readValue(data, classOf[JsValue])
 
   def parseJsValue(input: String): JsValue =
-    mapper().readValue(mapper().getFactory.createParser(input), classOf[JsValue])
+    mapper().readValue(input, classOf[JsValue])
 
   def parseJsValue(stream: InputStream): JsValue =
-    mapper().readValue(mapper().getFactory.createParser(stream), classOf[JsValue])
+    mapper().readValue(stream, classOf[JsValue])
 
-  private def withStringWriter[T](f: StringWriter => T): T = {
-    val sw = new StringWriter()
-
-    try {
-      f(sw)
-    } catch {
-      case err: Throwable => throw err
-    } finally {
-      if (sw != null) try {
-        sw.close()
-      } catch {
-        case _: Throwable => ()
-      }
+  def generateFromJsValue(jsValue: JsValue, escapeNonASCII: Boolean): String = {
+    val writer           = mapper().writer()
+    val configuredWriter = if (escapeNonASCII) {
+      writer.`with`(JsonWriteFeature.ESCAPE_NON_ASCII)
+    } else {
+      writer
     }
+
+    configuredWriter.writeValueAsString(jsValue)
   }
 
-  def generateFromJsValue(jsValue: JsValue, escapeNonASCII: Boolean): String =
-    withStringWriter { sw =>
-      val gen = stringJsonGenerator(sw)
-
-      if (escapeNonASCII) {
-        gen.enable(JsonWriteFeature.ESCAPE_NON_ASCII.mappedFeature)
-      }
-
-      mapper().writeValue(gen, jsValue)
-      sw.flush()
-      sw.getBuffer.toString
-    }
-
-  def prettyPrint(jsValue: JsValue): String = withStringWriter { sw =>
-    val gen = stringJsonGenerator(sw).setPrettyPrinter(
-      new DefaultPrettyPrinter()
-    )
+  def prettyPrint(jsValue: JsValue): String = {
     val writer: ObjectWriter = mapper().writerWithDefaultPrettyPrinter()
-
-    writer.writeValue(gen, jsValue)
-    sw.flush()
-    sw.getBuffer.toString
+    writer.writeValueAsString(jsValue)
   }
 
   def prettyPrintToStream(jsValue: JsValue, stream: OutputStream): Unit = {
-    val gen = stringJsonGenerator(stream).setPrettyPrinter(
-      new DefaultPrettyPrinter()
-    )
-    val writer: ObjectWriter = mapper().writerWithDefaultPrettyPrinter()
-
-    writer.writeValue(gen, jsValue)
+    val writer: ObjectWriter = mapper()
+      .writerWithDefaultPrettyPrinter()
+      .without(StreamWriteFeature.AUTO_CLOSE_TARGET)
+    writer.writeValue(stream, jsValue)
   }
 
   def jsValueToBytes(jsValue: JsValue): Array[Byte] =

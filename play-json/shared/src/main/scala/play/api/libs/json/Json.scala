@@ -33,12 +33,18 @@ sealed trait JsonFacade {
   /**
    * $parseDescription (use `tryParse` to be safe).
    *
-   * @param input the InputStream to parse
+   * The input stream is closed after parsing, including when parsing fails.
+   *
+   * @param input the InputStream to parse and close
    */
   def parse(input: InputStream): JsValue
 
   /**
    * $parseDescription.
+   *
+   * The input stream is closed after parsing, including when parsing fails.
+   *
+   * @param input the InputStream to parse and close
    */
   def tryParse(input: InputStream): Try[JsValue]
 
@@ -154,7 +160,7 @@ sealed trait JsonFacade {
    * writes the result to an output stream.
    *
    * $jsonParam
-   * @param stream the stream to write to.
+   * @param stream the stream to write to; it is not closed by this method.
    */
   def prettyPrintToStream(json: JsValue, stream: OutputStream): Unit
 
