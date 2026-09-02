@@ -4,6 +4,4 @@
 
 package play.api.libs.json
 
-trait RecursiveReads { self: Reads.type =>
-
-}
+private[json] trait EnvValueMacros { self: JsValueMacros => }

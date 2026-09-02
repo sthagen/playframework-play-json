@@ -4,6 +4,5 @@
 
 package play.api.libs.json
 
-trait RecursiveWrites { self: Writes.type =>
-
-}
+/* Scala compatibility trait for the `Reads` companion */
+private[json] trait ScalaCompatReads { self: Reads.type => }

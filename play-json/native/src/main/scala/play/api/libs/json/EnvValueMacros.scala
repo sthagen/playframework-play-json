@@ -4,6 +4,4 @@
 
 package play.api.libs.json
 
-trait RecursiveFormat { self: Format.type =>
-
-}
+private[json] trait EnvValueMacros { self: JsValueMacros => }

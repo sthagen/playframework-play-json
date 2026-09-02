@@ -166,7 +166,7 @@ trait Reads[A] { self =>
 /**
  * Default deserializer type classes.
  */
-object Reads extends ConstraintReads with PathReads with DefaultReads with GeneratedReads with RecursiveReads {
+object Reads extends ConstraintReads with PathReads with DefaultReads with GeneratedReads with ScalaCompatReads {
 
   val constraints: ConstraintReads = this
 
@@ -222,11 +222,13 @@ object Reads extends ConstraintReads with PathReads with DefaultReads with Gener
     }
 
   implicit def alternative(implicit a: Applicative[Reads]): Alternative[Reads] = new Alternative[Reads] {
-    val app                                                    = a
+    val app = a
+
     def |[A, B >: A](alt1: Reads[A], alt2: Reads[B]): Reads[B] = new Reads[B] {
       def reads(js: JsValue) = alt1.reads(js) match {
         case r @ JsSuccess(_, _) => r
-        case JsError(es1)        =>
+
+        case JsError(es1) =>
           alt2.reads(js) match {
             case r2 @ JsSuccess(_, _) => r2
             case JsError(es2)         => JsError(JsError.merge(es1, es2))
@@ -521,23 +523,6 @@ trait DefaultReads extends LowPriorityDefaultReads {
       case b: JsBoolean => JsSuccess(b)
       case _            => JsError(Seq(JsPath -> Seq(JsonValidationError("error.expected.jsboolean"))))
     }
-  }
-
-  @scala.annotation.tailrec
-  private def mapObj[K, V](
-      key: String => JsResult[K],
-      in: List[(String, JsValue)],
-      out: Builder[(K, V), Map[K, V]]
-  )(implicit vr: Reads[V]): JsResult[Map[K, V]] = in match {
-    case (k, v) :: entries =>
-      key(k).flatMap(vk => v.validate[V].map(vk -> _)) match {
-        case JsError(details) => JsError(details)
-
-        case JsSuccess((vk, value), _) =>
-          mapObj[K, V](key, entries, out += (vk -> value))
-      }
-
-    case _ => JsSuccess(out.result())
   }
 
   /** Deserializer for a `Map[K,V]` */

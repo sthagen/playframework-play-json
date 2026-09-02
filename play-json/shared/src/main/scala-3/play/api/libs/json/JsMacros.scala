@@ -6,7 +6,9 @@ package play.api.libs.json
 
 import scala.deriving.*
 
-private[json] trait JsMacros {
+import scala.reflect.Enum
+
+private[json] trait JsMacros extends EnumHandler {
 
   /**
    * Creates a `Reads[T]` by resolving, at compile-time,
@@ -78,7 +80,7 @@ private[json] trait JsMacros {
   inline def format[A]: OFormat[A] = ${ JsMacroImpl.format[A] }
 }
 
-private[json] trait JsValueMacros {
+private[json] trait JsValueMacros extends EnvValueMacros {
 
   /**
    * Creates a `Reads[A]`, if `A` is a ValueClass,
