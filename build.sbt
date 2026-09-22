@@ -10,8 +10,6 @@ import com.typesafe.tools.mima.core._
 import sbtcrossproject.CrossPlugin.autoImport._
 import sbtcrossproject.CrossType
 
-resolvers ++= DefaultOptions.resolvers(snapshot = true)
-
 val isScala3 = Def.setting {
   CrossVersion.partialVersion(scalaVersion.value).exists(_._1 != 2)
 }
@@ -105,8 +103,8 @@ lazy val commonSettings = Def.settings(
       s"Copyright (C) from 2022 The Play Framework Contributors <https://github.com/playframework>, 2011-2021 Lightbend Inc. <https://www.lightbend.com>"
     )
   ),
-  scalaVersion       := Dependencies.Scala213,
-  crossScalaVersions := Seq(Dependencies.Scala212, Dependencies.Scala213, Dependencies.Scala3),
+  scalaVersion := Dependencies.resolveScalaVersion(sys.props.getOrElse("scala.version", Dependencies.scala213Version)),
+  crossScalaVersions := Dependencies.publishedScalaVersions,
   Compile / javacOptions ++= javacSettings,
   Test / javacOptions ++= javacSettings,
   Compile / compile / javacOptions ++= Seq("--release", "17"), // sbt #1785, avoids passing to javadoc
