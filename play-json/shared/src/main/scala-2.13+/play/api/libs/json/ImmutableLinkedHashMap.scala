@@ -5,8 +5,8 @@
 package play.api.libs.json
 
 import java.util.{ LinkedHashMap => JLinkedHashMap }
-import scala.collection.AbstractIterator
-import scala.collection.MapFactory
+
+import scala.collection.{ AbstractIterator, MapFactory }
 import scala.collection.immutable.AbstractMap
 import scala.collection.mutable
 
@@ -27,7 +27,7 @@ private[json] class ImmutableLinkedHashMap[A, +B](underlying: JLinkedHashMap[A, 
   }
 
   override def updated[V1 >: B](key: A, value: V1): Map[A, V1] = {
-    val c = shallowCopy[V1](size + 1)
+    val c = shallowCopy[V1](if (underlying.containsKey(key)) size else size + 1)
     c.put(key, value)
     new ImmutableLinkedHashMap(c)
   }
@@ -35,7 +35,7 @@ private[json] class ImmutableLinkedHashMap[A, +B](underlying: JLinkedHashMap[A, 
   override def mapFactory: MapFactory[Map] = ImmutableLinkedHashMap
 
   override def iterator: Iterator[(A, B)] = new AbstractIterator[(A, B)] {
-    private[this] val ui = underlying.entrySet().iterator()
+    private val ui = underlying.entrySet().iterator()
 
     override def hasNext: Boolean = ui.hasNext
 
@@ -50,9 +50,17 @@ private[json] class ImmutableLinkedHashMap[A, +B](underlying: JLinkedHashMap[A, 
   override def knownSize: Int = underlying.size()
   override def size: Int      = underlying.size()
 
+  // Sized for sizeHint entries, so the copy never rehashes, and copied from the entries
+  // directly rather than through the tuple iterator.
   private def shallowCopy[V1 >: B](sizeHint: Int = size): JLinkedHashMap[A, V1] = {
-    val c = new JLinkedHashMap[A, V1](sizeHint)
-    for ((k, v) <- this) c.put(k, v)
+    val c  = new JLinkedHashMap[A, V1](ImmutableLinkedHashMap.capacityFor(sizeHint))
+    val it = underlying.entrySet().iterator()
+
+    while (it.hasNext) {
+      val e = it.next()
+      c.put(e.getKey, e.getValue)
+    }
+
     c
   }
 }
@@ -60,12 +68,16 @@ private[json] class ImmutableLinkedHashMap[A, +B](underlying: JLinkedHashMap[A, 
 private[json] object ImmutableLinkedHashMap extends MapFactory[Map] {
   private object EmptyMap extends ImmutableLinkedHashMap[Any, Nothing](new JLinkedHashMap(0))
 
+  // Smallest initial capacity that holds `size` entries at the default 0.75 load factor
+  // (what LinkedHashMap.newLinkedHashMap computes on JDK 19+, not available at --release 17).
+  private[json] def capacityFor(size: Int): Int = math.ceil(size / 0.75).toInt
+
   override def empty[K, V]: Map[K, V] = EmptyMap.asInstanceOf[Map[K, V]]
 
   override def from[K, V](it: IterableOnce[(K, V)]): Map[K, V] = (newBuilder ++= it).result()
 
   override def newBuilder[A, B]: mutable.Builder[(A, B), Map[A, B]] = new mutable.Builder[(A, B), Map[A, B]] {
-    private[this] var lhm = new JLinkedHashMap[A, B](0)
+    private var lhm = new JLinkedHashMap[A, B](0)
 
     override def clear(): Unit = lhm.clear()
 

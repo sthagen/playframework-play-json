@@ -5,12 +5,12 @@
 resolvers += Resolver.sonatypeCentralSnapshots
 
 addSbtPlugin(
-  "org.playframework" % "play-docs-sbt-plugin" % sys.props.getOrElse("play.version", "3.1.0-M10-173b8802-SNAPSHOT")
+  "org.playframework" % "play-docs-sbt-plugin" % sys.props.getOrElse("play.version", "3.1.0-M10-6c6ea95b-SNAPSHOT")
 )
 
 addSbtPlugin("pl.project13.scala" % "sbt-jmh" % "0.4.8")
 
-addSbtPlugin("com.typesafe" % "sbt-mima-plugin" % "1.2.0")
+addSbtPlugin("com.typesafe" % "sbt-mima-plugin" % "1.2.1")
 
 addSbtPlugin("com.github.sbt" % "sbt-header" % "5.11.0")
 
